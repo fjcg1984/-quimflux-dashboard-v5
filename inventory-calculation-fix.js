@@ -77,22 +77,24 @@
     });
   }
 
-  function scan() {
-    document.querySelectorAll('table').forEach(fixInventoryTable);
+  let scanTimer = null;
+  function scheduleScan() {
+    clearTimeout(scanTimer);
+    scanTimer = setTimeout(() => {
+      scanTimer = null;
+      document.querySelectorAll('table').forEach(fixInventoryTable);
+    }, 80);
   }
 
-  const observer = new MutationObserver(scan);
+  const observer = new MutationObserver(scheduleScan);
   observer.observe(document.documentElement, {
     childList: true,
     subtree: true
   });
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', scan, { once: true });
+    document.addEventListener('DOMContentLoaded', scheduleScan, { once: true });
   } else {
-    scan();
+    scheduleScan();
   }
-
-  // Refuerzo para renders asíncronos del módulo Inventario.
-  setInterval(scan, 500);
 })();

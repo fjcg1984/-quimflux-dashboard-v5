@@ -8,8 +8,9 @@ import './quimflux-theme.css';
 import './dashboard-final.css';
 import './dashboard-redesign.css';
 
-import './dashboard-v6-ui.js';
-import './dashboard-v6-enhance.js';
-import './dashboard-v6-nav-fix.js';
-import './dashboard-final.js';
-import './dashboard-redesign.js';
+/*
+  La navegación y el contenido funcional pertenecen a main.js.
+  Se mantienen los estilos V6, pero se desactivan los scripts que
+  reescribían #app/#content y añadían observers/intervalos redundantes.
+  Esto evita conflictos con el renderizado de main.js al cambiar de módulo.
+*/
