@@ -102,9 +102,14 @@ if (new URLSearchParams(location.search).get('parallel') === '1') {
     }
   }, true);
 
+  // Solo se bloquean formularios que claramente corresponden a alta/edición; los filtros pueden enviarse.
   document.addEventListener('submit', event => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
+    const form = event.target;
+    if (!form || isAllowedControl(form)) return;
+    if (isMutationText(form.textContent || '') || form.querySelector('[data-qf-parallel-locked="1"]')) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
   }, true);
 
   const observer = new MutationObserver(lock);
