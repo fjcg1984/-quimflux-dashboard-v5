@@ -1,10 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
 /*
-  Corrige exclusivamente el indicador de Seguridad del Dashboard.
-  El módulo SSOMA ya calcula correctamente el dato; aquí se replica la
-  misma regla sobre la fuente oficial para que el Dashboard no muestre
-  "SIN DATOS".
+  Corrección puntual del indicador de Seguridad del Dashboard.
+
+  IMPORTANTE:
+  Este módulo NO observa document.body ni ejecuta intervalos permanentes.
+  El Dashboard se renderiza desde main.js; mantener un MutationObserver global
+  aquí provocaba que las propias modificaciones de este módulo generaran nuevas
+  mutaciones y podían congelar el navegador.
 */
 
 const SUPABASE_URL = 'https://cgkdztwtodmdteohvuoh.supabase.co';
@@ -13,7 +16,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let userId = null;
 let rowsCache = null;
-let busy = false;
 
 function normalizeType(value) {
   return String(value || '')
@@ -61,6 +63,7 @@ async function loadRows(currentUserId) {
   } else {
     rowsCache = data || [];
   }
+
   userId = currentUserId;
   return rowsCache;
 }
@@ -69,7 +72,9 @@ function findDashboard() {
   return [...document.querySelectorAll('main')].find(main => {
     const h1 = main.querySelector('h1')?.textContent?.trim() || '';
     return h1 === 'Administración de Planta' ||
-      !![...main.querySelectorAll('h2')].find(h => (h.textContent || '').toLowerCase().includes('seguridad: días sin accidente/incidente'));
+      !![...main.querySelectorAll('h2')].find(h =>
+        (h.textContent || '').toLowerCase().includes('seguridad: días sin accidente/incidente')
+      );
   });
 }
 
@@ -84,7 +89,9 @@ async function patchDashboard() {
   if (!main) return;
 
   const security = [...main.querySelectorAll('.panel')].find(panel =>
-    (panel.querySelector('h2')?.textContent || '').toLowerCase().includes('seguridad: días sin accidente/incidente')
+    (panel.querySelector('h2')?.textContent || '')
+      .toLowerCase()
+      .includes('seguridad: días sin accidente/incidente')
   );
   if (!security) return;
 
@@ -97,6 +104,7 @@ async function patchDashboard() {
     .map(row => String(row.fecha || '').slice(0, 10))
     .filter(value => /^\d{4}-\d{2}-\d{2}$/.test(value))
     .sort();
+
   const lastDate = dates.at(-1) || null;
   const days = lastDate ? daysBetween(lastDate, todayLocal()) : null;
 
@@ -108,30 +116,30 @@ async function patchDashboard() {
     const value = days === null ? 'SIN DATOS' : String(days);
     const strong = daysCard.querySelector('strong');
     const badge = daysCard.querySelector('.badge');
-    if (strong) strong.textContent = value;
+
+    if (strong && strong.textContent !== value) strong.textContent = value;
     if (badge) {
-      badge.textContent = days === null ? 'SIN REGISTROS' : days === 0 ? 'EVENTO HOY' : 'EN CONTROL';
+      const label = days === null ? 'SIN REGISTROS' : days === 0 ? 'EVENTO HOY' : 'EN CONTROL';
+      if (badge.textContent.trim() !== label) badge.textContent = label;
       badge.className = `badge ${days === 0 ? 'critical' : 'ok'}`;
     }
   }
 
   if (lastCard) {
     const strong = lastCard.querySelector('strong');
-    if (strong) strong.textContent = lastDate || '—';
+    const value = lastDate || '—';
+    if (strong && strong.textContent !== value) strong.textContent = value;
   }
 
   if (totalCard) {
     const strong = totalCard.querySelector('strong');
-    if (strong) strong.textContent = String(rows.length);
+    const value = String(rows.length);
+    if (strong && strong.textContent !== value) strong.textContent = value;
   }
 }
 
-async function run() {
-  if (busy) return;
-  busy = true;
-  try { await patchDashboard(); } finally { busy = false; }
-}
-
-new MutationObserver(() => { void run(); }).observe(document.body, { childList: true, subtree: true });
-setInterval(() => { void run(); }, 1500);
-void run();
+/*
+  Una sola ejecución al cargar el módulo.
+  main.js ya es el responsable del renderizado y navegación del Dashboard.
+*/
+void patchDashboard();
