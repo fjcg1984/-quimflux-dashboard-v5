@@ -8,10 +8,11 @@
 </head>
 <body>
   <div id="app"></div>
-  <!-- QUIMFLUX: main.js es el propietario del renderizado; los módulos auxiliares no observan todo el DOM. -->
+  <!-- QUIMFLUX: main.js es el propietario del renderizado; los módulos auxiliares son event-driven. -->
   <script type="module" src="./quimflux-ui-entry.js"></script>
   <script type="module" src="./recepciones.js"></script>
   <script type="module" src="./qf-nav-bridge.js"></script>
+  <script type="module" src="./salidas.js"></script>
   <script type="module" src="./main.js"></script>
 </body>
 </html>
