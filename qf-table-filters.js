@@ -195,8 +195,16 @@
     addDespachosFilters();
   }
 
-  new MutationObserver(() => setTimeout(scan, 50)).observe(document.body, { childList:true, subtree:true });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan, { once:true });
-  else scan();
-  setInterval(scan, 700);
+  let scanTimer = null;
+  function scheduleScan() {
+    clearTimeout(scanTimer);
+    scanTimer = setTimeout(() => {
+      scanTimer = null;
+      scan();
+    }, 80);
+  }
+
+  new MutationObserver(scheduleScan).observe(document.body, { childList:true, subtree:true });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scheduleScan, { once:true });
+  else scheduleScan();
 })();
