@@ -5,17 +5,63 @@ const SUPABASE_KEY='sb_publishable_sULeDyfJ1l5xfuVhFgXRKA_bsim9qSe';
 const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
 
 /*
-  ESTABILIDAD DE ARRANQUE
-  main.js mantiene un callback onAuthStateChange que vuelve a renderizar
-  mientras init() todavía está cargando datos. Eso produce el parpadeo:
-  shell vacío -> shell con datos -> shell final.
+  QUIMFLUX: capa de compatibilidad permanente para el shell heredado.
 
-  La sesión inicial y el SIGNED_IN ya son gestionados explícitamente por
-  main.js mediante getSession()/load() y el formulario de acceso. Evitamos
-  esos callbacks duplicados para que exista un único ciclo de render.
+  main.js todavía conserva el menú histórico con data-tab="despachos".
+  No vamos a depender de un cambio posterior del DOM, observers o timers:
+  interceptamos únicamente el innerHTML del #app ANTES de que main.js lo
+  inserte. Así el shell nace ya con la nomenclatura definitiva:
+  - Despachos -> Salidas
+  - Administrador de Planta V6 -> Administrador de Planta
+  - se incorpora Entradas una sola vez
 
-  SIGNED_OUT se conserva para que una pérdida/cierre de sesión siga
-  llevando la aplicación a la pantalla de acceso.
+  El contenido de #content NO se intercepta. Salidas y Entradas siguen
+  perteneciendo exclusivamente a sus módulos event-driven.
+*/
+const app=document.getElementById('app');
+if(app){
+  const descriptor=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+
+  if(descriptor?.set && !app.__qfShellPatched){
+    Object.defineProperty(app,'innerHTML',{
+      configurable:true,
+      enumerable:descriptor.enumerable,
+      get(){
+        return descriptor.get.call(this);
+      },
+      set(value){
+        let html=String(value);
+
+        if(html.includes('<nav>') && html.includes('id="content"')){
+          html=html.replace(
+            /(<button\s+data-tab="despachos"[^>]*>)\s*Despachos\s*(<\/button>)/,
+            '$1Salidas$2'
+          );
+
+          html=html.replace(
+            /Administrador de Planta V6/g,
+            'Administrador de Planta'
+          );
+
+          if(!html.includes('data-tab="entradas"')){
+            html=html.replace(
+              /<button\s+data-tab="personal"/,
+              '<button data-tab="entradas">Entradas</button>\n        <button data-tab="personal"'
+            );
+          }
+        }
+
+        descriptor.set.call(this,html);
+      }
+    });
+
+    Object.defineProperty(app,'__qfShellPatched',{value:true,configurable:false});
+  }
+}
+
+/*
+  Evita que INITIAL_SESSION/SIGNED_IN disparen el render secundario de
+  main.js mientras init() todavía está cargando datos. SIGNED_OUT sí pasa.
 */
 const authPrototype=Object.getPrototypeOf(supabase.auth);
 if(authPrototype && !authPrototype.__qfStableAuthPatch){
@@ -30,38 +76,8 @@ if(authPrototype && !authPrototype.__qfStableAuthPatch){
   Object.defineProperty(authPrototype,'__qfStableAuthPatch',{value:true,configurable:false});
 }
 
-let enhancing=false;
 let externalNavigationBusy=false;
 
-function enhanceNav(){
-  if(enhancing)return;
-  enhancing=true;
-  try{
-    const nav=document.querySelector('nav');
-    if(!nav)return;
-
-    const despachos=nav.querySelector('button[data-tab="despachos"]');
-    if(despachos)despachos.textContent='Salidas';
-
-    let entrada=nav.querySelector('button[data-tab="entradas"]');
-    if(!entrada){
-      entrada=document.createElement('button');
-      entrada.type='button';
-      entrada.dataset.tab='entradas';
-      entrada.textContent='Entradas';
-      entrada.className='';
-      const inventario=nav.querySelector('button[data-tab="inventario"]');
-      if(inventario)inventario.after(entrada);else nav.appendChild(entrada);
-    }
-  }finally{
-    enhancing=false;
-  }
-}
-
-/*
-  Entradas y Salidas no deben pasar por el render antiguo de main.js.
-  La captura ocurre antes del onclick de los botones creados por main.js.
-*/
 document.addEventListener('click',event=>{
   const button=event.target.closest?.('nav button[data-tab]');
   if(!button)return;
@@ -76,6 +92,11 @@ document.addEventListener('click',event=>{
 
   document.querySelectorAll('nav button[data-tab]').forEach(b=>b.classList.remove('active'));
   button.classList.add('active');
+
+  if(target==='despachos'){
+    button.textContent='Salidas';
+  }
+
   externalNavigationBusy=true;
 
   Promise.resolve(
@@ -85,9 +106,3 @@ document.addEventListener('click',event=>{
   ).catch(error=>console.error('QUIMFLUX navegación:',error))
    .finally(()=>{externalNavigationBusy=false;});
 },{capture:true});
-
-/*
-  La nomenclatura se aplica una sola vez después de que main.js haya
-  construido el menú. No usamos MutationObserver ni intervalos.
-*/
-window.addEventListener('load',()=>requestAnimationFrame(enhanceNav),{once:true});
