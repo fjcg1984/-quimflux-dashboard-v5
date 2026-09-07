@@ -8,7 +8,6 @@
 </head>
 <body>
   <div id="app"></div>
-  <!-- La capa visual se inicializa antes de que main.js pinte la aplicación. -->
   <script type="module" src="./quimflux-ui-entry.js"></script>
   <script type="module" src="./main.js"></script>
   <script type="module" src="./inventory-calculation-fix.js"></script>
@@ -21,5 +20,7 @@
   <script type="module" src="./qf-executive-critical-fix.js"></script>
   <script type="module" src="./qf-dashboard-ssoma-fix.js"></script>
   <script type="module" src="./qf-presentation-polish.js"></script>
+  <!-- Modo paralelo: se activa únicamente con ?parallel=1. -->
+  <script type="module" src="./qf-parallel-entry.js"></script>
 </body>
 </html>
