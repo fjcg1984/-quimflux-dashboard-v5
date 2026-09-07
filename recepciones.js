@@ -9,9 +9,10 @@ let receipts=[];
 let suppliers=[];
 let products=[];
 
-const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const esc=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
 const num=v=>Number(v||0);
 const today=()=>new Date().toISOString().slice(0,10);
+const DOCUMENT_TYPES=['Guía de Remisión','Factura','Boleta','Nota de Crédito','Nota de Débito','Otro'];
 
 async function getUser(){
   const {data,error}=await supabase.auth.getUser();
@@ -59,7 +60,7 @@ function render(){
   target.innerHTML=`
     <main class="qf-rec-page">
       <div class="qf-rec-titlebar">
-        <div><h1>Entradas</h1><p>Ingreso de materiales, guías de remisión y control de proveedores.</p></div>
+        <div><h1>Entradas</h1><p>Ingreso de materiales, documentos y control de proveedores.</p></div>
         <button class="primary qf-rec-new" type="button">+ Nueva entrada</button>
       </div>
       <section class="qf-rec-kpis">
@@ -70,9 +71,9 @@ function render(){
       </section>
       <section class="qf-rec-panel">
         <div class="qf-rec-panel-head"><h2>Entradas de materiales</h2><span>${receipts.length} registro(s)</span></div>
-        ${receipts.length?`<div class="qf-rec-table-wrap"><table class="qf-rec-table"><thead><tr><th>Fecha</th><th>Guía</th><th>Proveedor</th><th>OC</th><th>Peso</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
-          ${receipts.map(r=>`<tr><td>${esc(r.receipt_date)}</td><td><b>${esc([r.guide_series,r.guide_number].filter(Boolean).join('-')||'Sin guía')}</b></td><td>${esc(r.supplier_name||'')}</td><td>${esc(r.purchase_order||'—')}</td><td>${num(r.total_weight_kg).toLocaleString('es-PE')} kg</td><td><span class="qf-rec-status">${esc(r.status||'')}</span></td><td><button class="secondary qf-rec-edit" type="button" data-id="${esc(r.id)}">Ver / editar</button> <button class="secondary qf-rec-del" type="button" data-id="${esc(r.id)}">Eliminar</button></td></tr>`).join('')}
-        </tbody></table></div>`:`<div class="qf-rec-empty"><div class="qf-rec-empty-icon">📥</div><h3>Aún no hay entradas</h3><p>Registra aquí las guías con las que los proveedores ingresan materiales a la planta.</p><button class="primary qf-rec-first" type="button">+ Registrar primera entrada</button></div>`}
+        ${receipts.length?`<div class="qf-rec-table-wrap"><table class="qf-rec-table"><thead><tr><th>Fecha</th><th>Documento</th><th>Proveedor</th><th>OC</th><th>Peso</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+          ${receipts.map(r=>`<tr><td>${esc(r.receipt_date)}</td><td><b>${esc(r.document_type||'Guía de Remisión')}</b><br>${esc([r.guide_series,r.guide_number].filter(Boolean).join('-')||'Sin número')}</td><td>${esc(r.supplier_name||'')}</td><td>${esc(r.purchase_order||'—')}</td><td>${num(r.total_weight_kg).toLocaleString('es-PE')} kg</td><td><span class="qf-rec-status">${esc(r.status||'')}</span></td><td><button class="secondary qf-rec-edit" type="button" data-id="${esc(r.id)}">Ver / editar</button> <button class="secondary qf-rec-del" type="button" data-id="${esc(r.id)}">Eliminar</button></td></tr>`).join('')}
+        </tbody></table></div>`:`<div class="qf-rec-empty"><div class="qf-rec-empty-icon">📥</div><h3>Aún no hay entradas</h3><p>Registra aquí los documentos con los que los proveedores ingresan materiales a la planta.</p><button class="primary qf-rec-first" type="button">+ Registrar primera entrada</button></div>`}
       </section>
     </main>`;
 
@@ -81,6 +82,8 @@ function render(){
   target.querySelectorAll('.qf-rec-edit').forEach(b=>b.onclick=()=>openForm(b.dataset.id));
   target.querySelectorAll('.qf-rec-del').forEach(b=>b.onclick=()=>removeReceipt(b.dataset.id));
 }
+
+function documentOptions(selected=''){return DOCUMENT_TYPES.map(v=>`<option value="${esc(v)}" ${String(selected||'Guía de Remisión')===v?'selected':''}>${esc(v)}</option>`).join('');}
 
 function openForm(id=null){
   const r=id?receipts.find(x=>x.id===id):null;
@@ -93,7 +96,7 @@ function openForm(id=null){
         <div class="qf-rec-section"><h3>Documento y proveedor</h3><div class="qf-rec-grid">
           <label>Fecha<input name="receipt_date" type="date" required value="${esc(r?.receipt_date||today())}"></label>
           <label>Hora<input name="receipt_time" type="time" value="${esc(r?.receipt_time||'')}"></label>
-          <label>Tipo<select name="document_type"><option ${!r||r?.document_type==='Guía de Remisión'?'selected':''}>Guía de Remisión</option><option ${r?.document_type==='Factura'?'selected':''}>Factura</option><option ${r?.document_type==='Otro'?'selected':''}>Otro</option></select></label>
+          <label>Tipo de documento<select name="document_type">${documentOptions(r?.document_type)}</select></label>
           <label>Serie<input name="guide_series" placeholder="E001" value="${esc(r?.guide_series||'')}"></label>
           <label>Número<input name="guide_number" placeholder="00001234" value="${esc(r?.guide_number||'')}"></label>
           <label>Orden de compra<input name="purchase_order" value="${esc(r?.purchase_order||'')}"></label>
