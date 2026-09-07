@@ -93,7 +93,8 @@ async function enhanceModal(modal){
       <label>Unidad / referencia<input class="qf-oc-unit" placeholder="Compras / Planta"></label>
       <label>Estado<select class="qf-oc-status"><option value="pendiente">Pendiente</option><option value="parcial">Parcial</option><option value="atendida">Atendida</option><option value="cancelada">Cancelada</option></select></label>
     </div><div class="qf-oc-inline-actions"><button type="button" class="secondary qf-oc-cancel">Cancelar</button><button type="button" class="primary qf-oc-save">Guardar O/C</button></div><div class="qf-oc-msg"></div>`;
-    label.parentNode.insertBefore(panel,document.querySelector('.qf-rec-section'));
+    const section=label.closest('.qf-rec-section');
+    section.appendChild(panel);
     panel.querySelector('.qf-oc-cancel').onclick=()=>panel.remove();
     panel.querySelector('.qf-oc-save').onclick=async()=>{
       const msg=panel.querySelector('.qf-oc-msg');
@@ -109,7 +110,6 @@ async function enhanceModal(modal){
         if(existing?.[0]){
           await refreshSelect(select,currentUser.id,number);
           panel.remove();
-          msg.textContent='';
           return;
         }
         const supplier={name:supplierName?.value.trim(),ruc:supplierRuc?.value.trim()};
