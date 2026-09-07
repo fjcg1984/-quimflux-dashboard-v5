@@ -5,6 +5,7 @@ const SUPABASE_KEY='sb_publishable_sULeDyfJ1l5xfuVhFgXRKA_bsim9qSe';
 const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
 
 let enhancing=false;
+let externalNavigationBusy=false;
 
 function enhanceNav(){
   if(enhancing)return;
@@ -32,9 +33,9 @@ function enhanceNav(){
 }
 
 /*
-  IMPORTANTE: Entradas y Salidas son módulos externos a main.js.
-  Capturamos esos clics ANTES de que main.js ejecute su render antiguo.
-  Así evitamos la carrera que provocaba que la pantalla cambiara dos veces.
+  Entradas y Salidas no deben pasar por el render antiguo de main.js.
+  La captura ocurre antes del onclick de los botones creados por main.js.
+  Esto elimina la doble renderización y evita que la interfaz cambie dos veces.
 */
 document.addEventListener('click',event=>{
   const button=event.target.closest?.('nav button[data-tab]');
@@ -46,14 +47,18 @@ document.addEventListener('click',event=>{
   event.preventDefault();
   event.stopImmediatePropagation();
 
+  if(externalNavigationBusy)return;
+
   document.querySelectorAll('nav button[data-tab]').forEach(b=>b.classList.remove('active'));
   button.classList.add('active');
+  externalNavigationBusy=true;
 
-  if(target==='despachos'){
-    window.qfOpenSalidas?.();
-  }else{
-    window.qfOpenRecepciones?.();
-  }
+  Promise.resolve(
+    target==='despachos'
+      ? window.qfOpenSalidas?.()
+      : window.qfOpenRecepciones?.()
+  ).catch(error=>console.error('QUIMFLUX navegación:',error))
+   .finally(()=>{externalNavigationBusy=false;});
 },{capture:true});
 
 function scheduleEnhance(){
