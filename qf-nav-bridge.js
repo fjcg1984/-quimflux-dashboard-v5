@@ -4,6 +4,32 @@ const SUPABASE_URL='https://cgkdztwtodmdteohvuoh.supabase.co';
 const SUPABASE_KEY='sb_publishable_sULeDyfJ1l5xfuVhFgXRKA_bsim9qSe';
 const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
 
+/*
+  ESTABILIDAD DE ARRANQUE
+  main.js mantiene un callback onAuthStateChange que vuelve a renderizar
+  mientras init() todavía está cargando datos. Eso produce el parpadeo:
+  shell vacío -> shell con datos -> shell final.
+
+  La sesión inicial y el SIGNED_IN ya son gestionados explícitamente por
+  main.js mediante getSession()/load() y el formulario de acceso. Evitamos
+  esos callbacks duplicados para que exista un único ciclo de render.
+
+  SIGNED_OUT se conserva para que una pérdida/cierre de sesión siga
+  llevando la aplicación a la pantalla de acceso.
+*/
+const authPrototype=Object.getPrototypeOf(supabase.auth);
+if(authPrototype && !authPrototype.__qfStableAuthPatch){
+  const originalOnAuthStateChange=authPrototype.onAuthStateChange;
+  authPrototype.onAuthStateChange=function(callback){
+    const guardedCallback=(event,session)=>{
+      if(event==='INITIAL_SESSION' || event==='SIGNED_IN') return;
+      return callback(event,session);
+    };
+    return originalOnAuthStateChange.call(this,guardedCallback);
+  };
+  Object.defineProperty(authPrototype,'__qfStableAuthPatch',{value:true,configurable:false});
+}
+
 let enhancing=false;
 let externalNavigationBusy=false;
 
@@ -35,7 +61,6 @@ function enhanceNav(){
 /*
   Entradas y Salidas no deben pasar por el render antiguo de main.js.
   La captura ocurre antes del onclick de los botones creados por main.js.
-  Esto elimina la doble renderización y evita que la interfaz cambie dos veces.
 */
 document.addEventListener('click',event=>{
   const button=event.target.closest?.('nav button[data-tab]');
@@ -61,9 +86,8 @@ document.addEventListener('click',event=>{
    .finally(()=>{externalNavigationBusy=false;});
 },{capture:true});
 
-function scheduleEnhance(){
-  requestAnimationFrame(enhanceNav);
-}
-
-supabase.auth.onAuthStateChange(scheduleEnhance);
-window.addEventListener('load',scheduleEnhance,{once:true});
+/*
+  La nomenclatura se aplica una sola vez después de que main.js haya
+  construido el menú. No usamos MutationObserver ni intervalos.
+*/
+window.addEventListener('load',()=>requestAnimationFrame(enhanceNav),{once:true});
