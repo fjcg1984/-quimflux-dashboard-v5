@@ -1,17 +1,15 @@
-/* QUIMFLUX — punto único de entrada para UI y estilos del dashboard.
-   Vite empaqueta estos recursos juntos para GitHub Pages. */
+/* QUIMFLUX — punto único de entrada para UI y estilos. */
 import './login-fix.css';
 import './despachos-crud.css';
 import './recepciones.css';
-import './dashboard-v6-ui.css';
 import './quimflux-theme.css';
 import './dashboard-final.css';
-import './dashboard-redesign.css';
 
 /*
-  La navegación y el contenido funcional pertenecen a main.js.
-  Los scripts de UI que reescribían #app/#content o mantenían observers
-  redundantes están desactivados para evitar ciclos de renderizado.
-  La nomenclatura Entradas/Salidas se resuelve en recepciones.js sin
-  añadir otro observer global que recorra todo el DOM.
+  Se eliminan las capas visuales V6/redesign que ya no son utilizadas por
+  main.js. Tener varias generaciones de CSS globales cargadas a la vez
+  permitía que reglas antiguas compitieran con el shell actual.
+
+  El contenido funcional pertenece a main.js y a los módulos event-driven
+  de Entradas/Salidas. No se usan observers ni intervalos globales.
 */
