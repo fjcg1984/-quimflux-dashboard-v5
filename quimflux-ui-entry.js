@@ -7,6 +7,7 @@ import './dashboard-v6-ui.css';
 import './quimflux-theme.css';
 import './dashboard-final.css';
 import './dashboard-redesign.css';
+import './qf-nomenclatura.js';
 
 /*
   La navegación y el contenido funcional pertenecen a main.js.
