@@ -7,11 +7,11 @@ import './dashboard-v6-ui.css';
 import './quimflux-theme.css';
 import './dashboard-final.css';
 import './dashboard-redesign.css';
-import './qf-nomenclatura.js';
 
 /*
   La navegación y el contenido funcional pertenecen a main.js.
-  Se mantienen los estilos V6, pero se desactivan los scripts que
-  reescribían #app/#content y añadían observers/intervalos redundantes.
-  Esto evita conflictos con el renderizado de main.js al cambiar de módulo.
+  Los scripts de UI que reescribían #app/#content o mantenían observers
+  redundantes están desactivados para evitar ciclos de renderizado.
+  La nomenclatura Entradas/Salidas se resuelve en recepciones.js sin
+  añadir otro observer global que recorra todo el DOM.
 */
