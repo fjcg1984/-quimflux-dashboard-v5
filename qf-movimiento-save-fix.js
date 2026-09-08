@@ -1,11 +1,260 @@
 import { createClient } from '@supabase/supabase-js';
-const supabase=createClient('https://cgkdztwtodmdteohvuoh.supabase.co','sb_publishable_sULeDyfJ1l5xfuVhFgXRKA_bsim9qSe');
-const esc=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
-const num=v=>Number.isFinite(Number(v))?Number(v):0;
-async function getUser(){const r=await supabase.auth.getUser();if(r.error)throw r.error;if(!r.data?.user)throw Error('La sesión no está disponible.');return r.data.user}
-function products(form){return [...form.querySelectorAll('[data-lines] > *')].map(row=>{const p=row.querySelector('.lp, .qf-line-product, select[name="product_id"]');const q=row.querySelector('.lq, .qf-line-qty, input[name="quantity"]');const w=row.querySelector('.lw, .qf-line-weight, input[name="weight_kg"]');const l=row.querySelector('.ll, .qf-line-lot, input[name="lot"]');return {product_id:p?.value||'',quantity:num(q?.value),weight:num(w?.value),lot:(l?.value||'').trim()}}).filter(x=>x.product_id&&x.quantity>0)}
-function driverLicense(form){const d=form.querySelector('[name="driver"]');if(!d)return;const row=d.closest('.qf-mf-row');let out=form.querySelector('[name="driver_license"]');if(!out){out=document.createElement('input');out.name='driver_license';out.readOnly=true;row?.parentElement?.appendChild(out)};return out}
-async function save(ev){const form=ev.target;if(!form.matches('.qf-mf-form'))return;ev.preventDefault();ev.stopImmediatePropagation();try{const u=await getUser();const entry=!!form.querySelector('[name="supplier_id"]');const items=products(form);if(!items.length)throw Error('Selecciona un producto y coloca una cantidad mayor que cero.');const selected=form.querySelector('[name="customer_id"], [name="supplier_id"]')?.value||null;if(!selected)throw Error(entry?'Selecciona un proveedor.':'Selecciona un cliente.');const recId=form.dataset.recordId||null;if(entry){const payload={owner_id:u.id,receipt_date:form.querySelector('[name="date"]')?.value,receipt_time:form.querySelector('[name="time"]')?.value||null,document_type:form.querySelector('[name="document_type"]')?.value,guide_series:form.querySelector('[name="series"]')?.value||null,guide_number:form.querySelector('[name="number"]')?.value||null,supplier_id:selected,supplier_name:form.querySelector('[name="third_name"]')?.value||null,supplier_ruc:form.querySelector('[name="third_ruc"]')?.value||null,purchase_order:form.querySelector('[name="purchase_order"]')?.value||null,vehicle_plate:form.querySelector('[name="vehicle"]')?.value||null,driver_name:form.querySelector('[name="driver"]')?.value||null,driver_license:form.querySelector('[name="driver_license"]')?.value||null,origin:form.querySelector('[name="origin"]')?.value||null,destination:form.querySelector('[name="destination"]')?.value||null,status:form.querySelector('[name="status"]')?.value||'Registrada',total_quantity:items.reduce((a,x)=>a+x.quantity,0),total_weight_kg:items.reduce((a,x)=>a+x.weight,0),observations:form.querySelector('[name="observations"]')?.value||null,updated_at:new Date().toISOString()};let id=recId;if(id){const r=await supabase.from('qf_receipts').update(payload).eq('id',id).eq('owner_id',u.id);if(r.error)throw r.error;const d=await supabase.from('qf_receipt_items').delete().eq('receipt_id',id);if(d.error)throw d.error}else{const r=await supabase.from('qf_receipts').insert(payload).select('id').single();if(r.error)throw r.error;id=r.data.id}const r2=await supabase.from('qf_receipt_items').insert(items.map(x=>({receipt_id:id,product_id:x.product_id,quantity_received:x.quantity,quantity_guide:x.quantity,weight_kg:x.weight,lot:x.lot,condition:'Conforme'})));if(r2.error)throw r2.error}else{const payload={owner_id:u.id,guide_number:((form.querySelector('[name="series"]')?.value||'').trim()?((form.querySelector('[name="series"]')?.value||'').trim()+'-'):'')+(form.querySelector('[name="number"]')?.value||''),guide_date:form.querySelector('[name="date"]')?.value,guide_time:form.querySelector('[name="time"]')?.value||null,document_type:form.querySelector('[name="document_type"]')?.value,reason:form.querySelector('[name="reason"]')?.value||'Venta',customer_id:selected,purchase_order_id:form.querySelector('[name="purchase_order_id"]')?.value||null,origin:form.querySelector('[name="origin"]')?.value||null,destination:form.querySelector('[name="destination"]')?.value||null,gross_weight_kg:num(form.querySelector('[name="gross_weight_kg"]')?.value),vehicle_id:form.querySelector('[name="vehicle"]')?.value||null,driver_id:form.querySelector('[name="driver"]')?.value||null,status:form.querySelector('[name="status"]')?.value||'registrado',observations:form.querySelector('[name="observations"]')?.value||null};let id=recId;if(id){const r=await supabase.from('qf_shipments').update(payload).eq('id',id).eq('owner_id',u.id);if(r.error)throw r.error;const d=await supabase.from('qf_shipment_items').delete().eq('shipment_id',id).eq('owner_id',u.id);if(d.error)throw d.error}else{const r=await supabase.from('qf_shipments').insert(payload).select('id').single();if(r.error)throw r.error;id=r.data.id}const r2=await supabase.from('qf_shipment_items').insert(items.map((x,i)=>({shipment_id:id,owner_id:u.id,line_no:i+1,product_id:x.product_id,quantity:x.quantity,unit:'kg',lot:x.lot,condition:'Conforme'})));if(r2.error)throw r2.error}form.closest('.qf-rec-modal')?.remove();window.dispatchEvent(new CustomEvent('qf-movimiento-saved'));alert(entry?'Entrada guardada correctamente.':'Salida guardada correctamente.')}catch(e){alert('No se pudo guardar: '+(e?.message||e))}}
+
+const supabase = createClient('https://cgkdztwtodmdteohvuoh.supabase.co','sb_publishable_sULeDyfJ1l5xfuVhFgXRKA_bsim9qSe');
+const num = v => Number.isFinite(Number(v)) ? Number(v) : 0;
+
+async function getUser(){
+  const r = await supabase.auth.getUser();
+  if(r.error) throw r.error;
+  if(!r.data?.user) throw Error('La sesión no está disponible.');
+  return r.data.user;
+}
+
+/*
+ * Salidas: la O/C se escribe directamente. Reemplazamos el select del
+ * formulario por un input para no obligar a buscar una O/C existente.
+ */
+function upgradeOrderField(root=document){
+  root.querySelectorAll('.qf-mf-form [name="purchase_order_id"]').forEach(el=>{
+    if(el.tagName==='INPUT') return;
+    const input=document.createElement('input');
+    input.type='text';
+    input.name='purchase_order_id';
+    input.value=el.selectedOptions?.[0]?.textContent?.trim() || '';
+    input.placeholder='Escribe el N.º de O/C';
+    input.autocomplete='off';
+    input.className=el.className || '';
+    el.replaceWith(input);
+  });
+}
+
+function startOrderUpgrade(){
+  upgradeOrderField();
+  const obs=new MutationObserver(()=>upgradeOrderField());
+  obs.observe(document.body,{childList:true,subtree:true});
+  setTimeout(()=>obs.disconnect(),120000);
+}
+startOrderUpgrade();
+
+function readProducts(form){
+  const rows=[...form.querySelectorAll('[data-lines] > *')];
+  return rows.map(row=>{
+    const p=row.querySelector('.lp, .qf-line-product, select[name="product_id"]');
+    const q=row.querySelector('.lq, .qf-line-qty, input[name="quantity"]');
+    const w=row.querySelector('.lw, .qf-line-weight, input[name="weight_kg"]');
+    const l=row.querySelector('.ll, .qf-line-lot, input[name="lot"]');
+    const selected=p?.selectedOptions?.[0];
+    return {
+      product_id:p?.value||'',
+      quantity:num(q?.value),
+      weight:num(w?.value),
+      lot:(l?.value||'').trim(),
+      option_text:selected?.textContent?.trim()||''
+    };
+  }).filter(x=>x.product_id && x.quantity>0);
+}
+
+async function enrichProducts(items,userId){
+  if(!items.length) return items;
+  const ids=[...new Set(items.map(x=>x.product_id))];
+  const r=await supabase.from('qf_products')
+    .select('id,internal_code,name,base_unit')
+    .eq('owner_id',userId)
+    .in('id',ids);
+  if(r.error) throw r.error;
+  const map=new Map((r.data||[]).map(x=>[x.id,x]));
+  return items.map(x=>{
+    const p=map.get(x.product_id);
+    const fallback=x.option_text || 'Producto';
+    return {
+      ...x,
+      source_product_code:p?.internal_code || '',
+      description_source:p?.name || fallback,
+      unit:p?.base_unit || 'kg'
+    };
+  });
+}
+
+function driverLicense(form){
+  return form.querySelector('[name="driver_license"]');
+}
+
+async function fetchLicense(out,idOrName){
+  if(!out || !idOrName) return;
+  try{
+    const u=await getUser();
+    let r=await supabase.from('qf_drivers')
+      .select('license_number')
+      .eq('owner_id',u.id)
+      .eq('id',idOrName)
+      .maybeSingle();
+    if(!r.data && !r.error){
+      r=await supabase.from('qf_drivers')
+        .select('license_number')
+        .eq('owner_id',u.id)
+        .eq('full_name',idOrName)
+        .maybeSingle();
+    }
+    if(r.error) throw r.error;
+    out.value=r.data?.license_number||'';
+  }catch{
+    out.value='';
+  }
+}
+
+async function resolveShipmentOrderId(typedOrder,customerId,userId){
+  const text=(typedOrder||'').trim();
+  if(!text) return null;
+  const normalized=text.replace(/^O\/C\s*/i,'').trim();
+  let r=await supabase.from('qf_purchase_orders')
+    .select('id,oc_number')
+    .eq('owner_id',userId)
+    .eq('oc_number',normalized)
+    .eq('customer_id',customerId)
+    .limit(1)
+    .maybeSingle();
+  if(r.error) throw r.error;
+  if(r.data?.id) return r.data.id;
+
+  /* Si fue escrita y todavía no existe, la registramos como O/C pendiente. */
+  r=await supabase.from('qf_purchase_orders')
+    .insert({owner_id:userId,customer_id:customerId,oc_number:normalized,status:'pendiente'})
+    .select('id')
+    .single();
+  if(r.error) throw r.error;
+  return r.data.id;
+}
+
+async function save(ev){
+  const form=ev.target;
+  if(!form.matches('.qf-mf-form')) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  try{
+    upgradeOrderField(form);
+    const u=await getUser();
+    const entry=!!form.querySelector('[name="supplier_id"]');
+    let items=readProducts(form);
+    if(!items.length) throw Error('Selecciona un producto y coloca una cantidad mayor que cero.');
+    items=await enrichProducts(items,u.id);
+
+    const selected=form.querySelector('[name="customer_id"], [name="supplier_id"]')?.value || null;
+    if(!selected) throw Error(entry?'Selecciona un proveedor.':'Selecciona un cliente.');
+    const recId=form.dataset.recordId || null;
+
+    if(entry){
+      const payload={
+        owner_id:u.id,
+        receipt_date:form.querySelector('[name="date"]')?.value,
+        receipt_time:form.querySelector('[name="time"]')?.value||null,
+        document_type:form.querySelector('[name="document_type"]')?.value,
+        guide_series:form.querySelector('[name="series"]')?.value||null,
+        guide_number:form.querySelector('[name="number"]')?.value||null,
+        supplier_id:selected,
+        supplier_name:form.querySelector('[name="third_name"]')?.value||null,
+        supplier_ruc:form.querySelector('[name="third_ruc"]')?.value||null,
+        purchase_order:form.querySelector('[name="purchase_order"]')?.value||null,
+        vehicle_plate:form.querySelector('[name="vehicle"]')?.value||null,
+        driver_name:form.querySelector('[name="driver"]')?.value||null,
+        driver_license:form.querySelector('[name="driver_license"]')?.value||null,
+        origin:form.querySelector('[name="origin"]')?.value||null,
+        destination:form.querySelector('[name="destination"]')?.value||null,
+        status:form.querySelector('[name="status"]')?.value||'Registrada',
+        total_quantity:items.reduce((a,x)=>a+x.quantity,0),
+        total_weight_kg:items.reduce((a,x)=>a+x.weight,0),
+        observations:form.querySelector('[name="observations"]')?.value||null,
+        updated_at:new Date().toISOString()
+      };
+      let id=recId;
+      if(id){
+        const r=await supabase.from('qf_receipts').update(payload).eq('id',id).eq('owner_id',u.id);
+        if(r.error) throw r.error;
+        const d=await supabase.from('qf_receipt_items').delete().eq('receipt_id',id);
+        if(d.error) throw d.error;
+      }else{
+        const r=await supabase.from('qf_receipts').insert(payload).select('id').single();
+        if(r.error) throw r.error;
+        id=r.data.id;
+      }
+      const r2=await supabase.from('qf_receipt_items').insert(items.map(x=>({
+        receipt_id:id,
+        product_id:x.product_id,
+        codigo:x.source_product_code||null,
+        material:x.description_source,
+        description:x.description_source,
+        unit:x.unit||'kg',
+        quantity_received:x.quantity,
+        quantity_guide:x.quantity,
+        weight_kg:x.weight,
+        lot:x.lot||null,
+        condition:'Conforme'
+      })));
+      if(r2.error) throw r2.error;
+    }else{
+      const typedOrder= form.querySelector('[name="purchase_order_id"]')?.value || '';
+      const purchaseOrderId=await resolveShipmentOrderId(typedOrder,selected,u.id);
+      const series=(form.querySelector('[name="series"]')?.value||'').trim();
+      const number=(form.querySelector('[name="number"]')?.value||'').trim();
+      const payload={
+        owner_id:u.id,
+        guide_number:(series ? series+'-' : '')+number,
+        guide_date:form.querySelector('[name="date"]')?.value,
+        guide_time:form.querySelector('[name="time"]')?.value||null,
+        document_type:form.querySelector('[name="document_type"]')?.value,
+        reason:form.querySelector('[name="reason"]')?.value||'Venta',
+        customer_id:selected,
+        purchase_order_id:purchaseOrderId,
+        origin:form.querySelector('[name="origin"]')?.value||null,
+        destination:form.querySelector('[name="destination"]')?.value||null,
+        gross_weight_kg:num(form.querySelector('[name="gross_weight_kg"]')?.value),
+        vehicle_id:form.querySelector('[name="vehicle"]')?.value||null,
+        driver_id:form.querySelector('[name="driver"]')?.value||null,
+        status:form.querySelector('[name="status"]')?.value||'registrado',
+        observations:form.querySelector('[name="observations"]')?.value||null
+      };
+      let id=recId;
+      if(id){
+        const r=await supabase.from('qf_shipments').update(payload).eq('id',id).eq('owner_id',u.id);
+        if(r.error) throw r.error;
+        const d=await supabase.from('qf_shipment_items').delete().eq('shipment_id',id).eq('owner_id',u.id);
+        if(d.error) throw d.error;
+      }else{
+        const r=await supabase.from('qf_shipments').insert(payload).select('id').single();
+        if(r.error) throw r.error;
+        id=r.data.id;
+      }
+      const r2=await supabase.from('qf_shipment_items').insert(items.map((x,i)=>({
+        shipment_id:id,
+        owner_id:u.id,
+        line_no:i+1,
+        product_id:x.product_id,
+        source_product_code:x.source_product_code||null,
+        description_source:x.description_source,
+        quantity:x.quantity,
+        unit:x.unit||'kg',
+        package_type:null,
+        package_count:null,
+        weight_per_package_kg:x.weight||null,
+        lot:x.lot||null,
+        condition:'Conforme'
+      })));
+      if(r2.error) throw r2.error;
+    }
+
+    form.closest('.qf-rec-modal')?.remove();
+    window.dispatchEvent(new CustomEvent('qf-movimiento-saved'));
+    alert(entry?'Entrada guardada correctamente.':'Salida guardada correctamente.');
+  }catch(e){
+    alert('No se pudo guardar: '+(e?.message||e));
+  }
+}
+
 document.addEventListener('submit',save,true);
-document.addEventListener('change',e=>{const f=e.target.closest('.qf-mf-form');if(!f)return;if(e.target.name==='driver'){const out=driverLicense(f);if(out)fetchLicense(out,e.target.value)}});
-async function fetchLicense(out,idOrName){try{const u=await getUser();const r=await supabase.from('qf_drivers').select('license_number').eq('owner_id',u.id).or(`id.eq.${idOrName},full_name.eq.${idOrName}`).maybeSingle();out.value=r.data?.license_number||''}catch{out.value=''}}
+document.addEventListener('change',e=>{
+  const f=e.target.closest('.qf-mf-form');
+  if(!f) return;
+  if(e.target.name==='driver'){
+    const out=driverLicense(f);
+    if(out) fetchLicense(out,e.target.value);
+  }
+});
