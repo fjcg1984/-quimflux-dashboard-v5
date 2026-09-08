@@ -29,14 +29,28 @@ if(app){
   }
 }
 
-/* Evita el render duplicado durante INITIAL_SESSION/SIGNED_IN mientras init()
-   termina de cargar datos. SIGNED_OUT sí continúa hacia main.js. */
+/* Recupera automáticamente una sesión cuyo access token haya quedado
+   desfasado respecto al reloj del servidor ("JWT issued at future").
+   El refresh usa el refresh token y evita que módulos independientes como
+   Salidas/Entradas queden bloqueados por un token antiguo en storage. */
 const authPrototype=Object.getPrototypeOf(supabase.auth);
 if(authPrototype && !authPrototype.__qfStableAuthPatch){
   const originalOnAuthStateChange=authPrototype.onAuthStateChange;
+  const originalGetUser=authPrototype.getUser;
   authPrototype.onAuthStateChange=function(callback){
     const guardedCallback=(event,session)=>{if(event==='INITIAL_SESSION'||event==='SIGNED_IN')return;return callback(event,session);};
     return originalOnAuthStateChange.call(this,guardedCallback);
+  };
+  authPrototype.getUser=async function(...args){
+    const first=await originalGetUser.apply(this,args);
+    const message=String(first?.error?.message||'').toLowerCase();
+    if(first?.error && message.includes('jwt issued at future')){
+      const refreshed=await this.refreshSession();
+      if(!refreshed?.error){
+        return originalGetUser.apply(this,args);
+      }
+    }
+    return first;
   };
   Object.defineProperty(authPrototype,'__qfStableAuthPatch',{value:true,configurable:false});
 }
