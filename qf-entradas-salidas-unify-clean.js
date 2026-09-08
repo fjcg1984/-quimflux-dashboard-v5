@@ -1,0 +1,1 @@
+const s=document.createElement('style');s.textContent=`.qf-unify-wrap .qf-md-add{display:none!important}.qf-unify-wrap .qf-unify-add{display:inline-flex!important;align-items:center;justify-content:center}.qf-unify-wrap{gap:8px!important}`;document.head.appendChild(s);
