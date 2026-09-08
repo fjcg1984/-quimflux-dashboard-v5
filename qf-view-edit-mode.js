@@ -12,7 +12,7 @@
   function isExisting(form){
     if(form.dataset.recordId) return true;
     const title=form.closest('.qf-rec-modal')?.querySelector('h2')?.textContent?.trim()||'';
-    return /^Editar\s+(salida|entrada)/i.test(title);
+    return /^(Editar|Ver)\s+(salida|entrada)/i.test(title);
   }
   function setDisabled(form,disabled){
     form.querySelectorAll('input,select,textarea').forEach(el=>{el.disabled=disabled;});
@@ -26,7 +26,10 @@
     actions.querySelector('.qf-view-edit-btn')?.remove();
     actions.querySelector('.qf-view-edit-note')?.remove();
     actions.dataset.editing='1';
-    form.closest('.qf-rec-modal')?.querySelector('h2')?.replaceChildren(document.createTextNode((form.closest('.qf-rec-modal')?.querySelector('h2')?.textContent||'').replace(/^Ver\s+/i,'Editar ')));
+    const save=form.querySelector('button[type="submit"],button.qf-mf-save');
+    if(save){save.style.display='inline-flex';save.disabled=false;save.textContent='Guardar cambios';}
+    const title=form.closest('.qf-rec-modal')?.querySelector('h2');
+    if(title) title.replaceChildren(document.createTextNode((title.textContent||'').replace(/^Ver\s+/i,'Editar ')));
   }
   function setup(form){
     if(form.dataset.qfViewSetup==='1' || !isExisting(form)) return;
@@ -34,7 +37,7 @@
     style();
     const modal=form.closest('.qf-rec-modal');
     const title=modal?.querySelector('h2');
-    if(title && /^Editar\s+/i.test(title.textContent||'')) title.textContent=(title.textContent||'').replace(/^Editar\s+/i,'Ver ');
+    if(title && /^(Editar|Ver)\s+(salida|entrada)/i.test(title.textContent||'')) title.textContent=(title.textContent||'').replace(/^Editar\s+/i,'Ver ');
     setDisabled(form,true);
     const actions=document.createElement('div');
     actions.className='qf-view-edit-actions';
